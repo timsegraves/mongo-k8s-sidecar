@@ -10,21 +10,15 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: mongo
-  labels:
-    name: mongo
-spec:
-  ports:
-  - port: 27017
-    targetPort: 27017
-  clusterIP: None
-  selector:
-    role: mongo
----
+# 
+# *********************************************************************************
+#
+# NOTE: Must run service first or this fails to find network to crease replica set
+# NOTE: If building from scratch, make sure and delete the persistent storage from
+#       kubernetes or it'll have old configuration from the previous replica set
+#       and cause issues with it not finding members.
+#
+#**********************************************************************************
 apiVersion: apps/v1beta1
 kind: StatefulSet
 metadata:
@@ -41,11 +35,13 @@ spec:
       terminationGracePeriodSeconds: 10
       containers:
         - name: mongo
-          image: mongo
+          image: mongo:3.6
           command:
             - mongod
             - "--replSet"
             - rs0
+            - "--bind_ip"
+            - 0.0.0.0
             - "--smallfiles"
             - "--noprealloc"
           ports:
@@ -58,6 +54,8 @@ spec:
           env:
             - name: MONGO_SIDECAR_POD_LABELS
               value: "role=mongo,environment=test"
+            - name: KUBERNETES_MONGO_SERVICE_NAME
+              value: "mongo"
   volumeClaimTemplates:
   - metadata:
       name: mongo-persistent-storage
@@ -67,4 +65,4 @@ spec:
       accessModes: [ "ReadWriteOnce" ]
       resources:
         requests:
-          storage: 100Gi
+          storage: 30Gi
